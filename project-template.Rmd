@@ -13,7 +13,7 @@ output:
 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 # echo=FALSE will stop the code chunk from appearing in the knit document
 # warning=FALSE and message=FALSE will stop R messages from appearing in the knit document
 library(tidyverse)
@@ -78,7 +78,7 @@ ggplot(cars, aes(x=speed, y=dist)) +
 
 Include the output without showing the code and R messages (which is what you want for your poster presentation).  This R code chunk also changes the size of the plot.
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, fig.width=4}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, fig.width=4}
 ggplot(cars, aes(x=speed, y=dist)) + 
   geom_point()
 ```
