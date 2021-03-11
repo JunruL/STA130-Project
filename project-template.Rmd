@@ -1,6 +1,6 @@
 ---
 title: "Your Project Title (be descriptive and creative!)"
-author: "Team members names, tutorial groups, and group number (if applicable)"
+author: "Haojun Qiu, Jasmine Zhuang, Junru Lin, Xiaoqi Liu, tutorial group--Howard, and Group 44"
 subtitle: "You can either put a subtitle here, or delete this line"
 date: April 1, 2021
 output: 
@@ -24,6 +24,74 @@ RCYC <- read_csv("STA130_project_data.csv")
 
 # see the project information page for more information: 
 # https://q.utoronto.ca/courses/206597/pages/project-overview-2?module_item_id=2274626
+```
+
+```{r}
+# Is the mean value of yearly amount spent on dining at the RCYC's restaurants similar between the Female member and the Male member in the city of Toronto (mainland) for 2017?
+
+# filter NA values
+city <- RCYC %>% filter(!is.na(city_dining) & !is.na(Sex))
+# calculate test_stat
+test_stat <- city %>% group_by(Sex) %>% summarise(mean=mean(city_dining)) %>% summarise(diff=diff(mean)) %>% as.numeric()
+test_stat
+# do simulations
+set.seed(44)
+repetitions <- 1000
+simulated_values <- rep(NA, repetitions)
+
+for (i in 1:repetitions) {
+  sim <- city %>% mutate(city_dining=sample(city_dining))
+  simulated_values[i] <- sim %>% group_by(Sex) %>% summarise(mean=mean(city_dining)) %>% summarise(diff=diff(mean)) %>% as.numeric()
+}
+# plot
+simulation <- tibble(mean_diff=simulated_values)
+simulation %>% ggplot(aes(x=mean_diff)) + geom_histogram(bins=20, fill='grey', color='black')
+#calculate p-value
+p_value <- simulation %>% filter(abs(mean_diff) >= abs(test_stat)) %>% summarise(n() / repetitions) %>% as.numeric()
+p_value
+```
+
+```{r}
+# city dining spending ~ Age, linear modelling 
+new_data <- RCYC %>% filter(year==2017 & !is.na(Age) & !is.na(city_dining)) # The year when the age should be measured
+model <- lm(city_dining ~ Age, data=new_data)
+summary(model)
+new_data %>% ggplot(aes(x=Age, y=city_dining)) + geom_point() + geom_smooth(method="lm") + theme_minimal()
+```
+
+```{r}
+# island dining spending ~ Age, linear modelling 
+new_data <- RCYC %>% filter(year==2017 & !is.na(Age) & !is.na(island_dining)) # The year when the age should be measured
+model <- lm(island_dining ~ Age, data=new_data)
+summary(model)
+new_data %>% ggplot(aes(x=Age, y=island_dining)) + geom_point() + geom_smooth(method="lm") + theme_minimal()
+```
+```{r}
+# bar spending ~ Age, linear modelling 
+new_data <- RCYC %>% filter(year==2017 & !is.na(Age) & !is.na(bar_spending)) # The year when the age should be measured
+model <- lm(bar_spending ~ Age, data=new_data)
+summary(model)
+new_data %>% ggplot(aes(x=Age, y=bar_spending)) + geom_point() + geom_smooth(method="lm") + theme_minimal()
+```
+
+```{r}
+# All_spending ~ Age, linear modelling 
+new_data <- RCYC %>% 
+  filter(year==2017 & !is.na(Age) & !is.na(city_dining)) %>% 
+  mutate(all_spending=city_dining + island_dining + bar_spending + other_spending)
+model <- lm(all_spending ~ Age, data=new_data)
+summary(model)
+new_data %>% ggplot(aes(x=Age, y=all_spending)) + geom_point() + geom_smooth(method="lm") + theme_minimal()
+```
+```{r}
+# spending ~ years of membership, linear modelling 
+new_data <- RCYC %>% 
+  filter(year==2017 & !is.na(Age) & !is.na(city_dining)) %>% 
+  mutate(all_spending=city_dining + island_dining + bar_spending + other_spending,
+         duration=2017-YearJoined)
+model <- lm(all_spending ~ duration, data=new_data)
+summary(model)
+new_data %>% ggplot(aes(x=duration, y=all_spending)) + geom_point() + geom_smooth(method="lm") + theme_minimal()
 ```
 
 
