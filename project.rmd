@@ -1,0 +1,394 @@
+---
+title: "Analysis of Annual Average Spending on Dining at the RCYC’s restaurants in the city of Toronto (mainland) for 2017"
+# subtitle: "Group 44"
+author: "Haojun Qiu, Jasmine Zhuang, Junru Lin, Xiaoqi Liu -- Group 44"
+date: March 19, 2021
+output: 
+  beamer_presentation:
+    theme: "Pittsburgh"
+    colortheme: "orchid"
+    fonttheme: "structurebold"
+    slide_level: 2
+fontsize: 10pt
+---
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# echo=FALSE will stop the code chunk from appearing in the knit document
+# warning=FALSE and message=FALSE will stop R messages from appearing in the knit document
+library(tidyverse)
+
+# here is the data for this project
+RCYC <- read_csv("STA130_project_data.csv")
+
+# see the project information page for more information: 
+# https://q.utoronto.ca/courses/206597/pages/project-overview-2?module_item_id=2274626
+```
+
+## Introduction
+
+- Main Goal
+-- We want to help RCYC’s managers better understand the **spending behavior of different demographic groups** of RCYC members at the RCYC’s restaurants in the city of Toronto (city dining) for 2017 (we will approach it by investigating three research questions).
+
+- Target Population
+-- We will target the members who spent money dining at the RCYC’s restaurants in the city of Toronto (mainland) for 2017.
+
+- The dataset we will use is provided by RCYC, which is a random sample of 1,000 RCYC members.
+
+
+## Data Summary and Wrangling
+
+Data Summary
+
+- The variable we will use are sex, year (for which the age, and spending variables are measured), age, and city dining (yearly amount spent on dining at the RCYC's restaurants in the city of Toronto (mainland), which is only available for 2017). 
+
+Data Wrangling
+
+- Question 1
+-- We take the original data frame given, filter, and store the observations spending less than \$2000 in 2017.
+
+- Question 2
+-- We take the data frame from the first question, filter and store the observations without missing value for the variable sex.
+
+- Question3
+-- We first filter and store the observations without missing value for the variable Age. Then, we create a new categorical variable - age group, where different values correspond to different age groups (e.g. ‘20-40’, ‘41-60’, etc.), and store this dataframe for later use.
+ 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# data preparation
+# filter NA values
+
+# The reason why we only filter city_dining < 2000 & city_dining != 0
+# RCYC %>% ggplot(aes(x=Age, y=city_dining)) + geom_point()
+
+# for Q1
+# filter data with city_dining and city_dining > 0
+city <- RCYC %>% filter(!is.na(city_dining) & city_dining < 2000 & city_dining != 0) 
+
+# for Q2
+# filter the city dining data with sex data available
+city_sex <- city %>% filter(!is.na(Sex))
+# divide the data into two groups, one for male and the other for female
+city_male <- city_sex %>% filter(Sex == "M")
+city_female <- city_sex %>% filter(Sex == "F")
+
+# for Q3
+# The year when the age is measured should be 2017
+city_age <- city %>% filter(year==2017 & !is.na(Age))
+# creat new variable
+city_age_group <- city_age %>% mutate(age_group = case_when(Age < 40 ~ "below 40",
+                                          40 <= Age & Age < 60 ~ "between 40 and 59",
+                                          60 <= Age & Age <= 80 ~ "between 60 and 80",
+                                          80 < Age ~ "above 80"))
+```
+
+## Research Question 1
+*Question:* What is a **range of plausible values** of the mean yearly spending on dining for the RCYC members at the RCYC’s restaurants in the city of Toronto (mainland) for 2017?
+
+- The answer to this question can help us gain insight into the average spending level of the members at the RCYC’s restaurants in the city of Toronto (mainland) for 2017. 
+
+- Then, we can predict future sales, plan for future pricing as well as prepare for the plan to control future expenditure cost.
+
+## Data Visualization for Q1
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.width=4, fig.height=2}
+# Q1 Visulization
+mean_spending <- as.numeric(city %>% summarise(mean(city_dining)))
+
+city %>% ggplot(aes(x=city_dining)) + 
+  geom_histogram(bins=20, fill="CornflowerBlue", color="black") + 
+  geom_vline(xintercept = mean_spending, color="peru") +
+  labs(title="Yearly Amount Spent on Dining of City Restaurants in 2017",
+       x="Spending ($)",
+       y="Count",
+       caption="Figure 1") + 
+  theme_minimal() +
+  theme(axis.title = element_text(size=8),
+        plot.title = element_text(size=8),
+        plot.caption = element_text(size=8))
+
+```
+
+- The distribution of the mean value of the yearly amount spent shows that a majority of members’ yearly spendings are less than $500 (right-skewed).
+
+- The vertical line drawn represents the mean value of spending at RCYC’s dining restaurant **from the sample**, which is about $288.
+
+
+## Statistical Method for Q1
+
+- The Bootstrap method allows us to estimate the range of plausible values of average yearly dining spending by resampling from the original sample:
+
+- Firstly, we randomly draw a sample of the size of the original sample with replacement (i.e. put back after drawing out) from the original sample (the data we have in hand).
+
+- Next, we calculate the mean value of city dining spending from the sample drawn.
+
+- Then, we repeat this process 2000 times to get 2000 samples and the corresponding statistics (sample means), so we have the distribution of these statistics.
+
+- Finally, we are 95% confident that the true average yearly amount spent of all RCYC members at RCYC’s city dining restaurant is within the middle 95% range (which is also called the 95% confidence interval) of our sample means calculated from these 2000 samplings.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Q1 What is a range of plausible values of the mean yearly amount spent on dining for the RCYC members at the RCYC’s restaurants in the city of Toronto (mainland) for 2017? 
+
+set.seed(44)
+n <- nrow(city) # sample size
+repetitions <- 2000
+simulations <- rep(NA, repetitions)
+
+# begin simulations
+for (i in 1:repetitions){
+  sim <- city %>% sample_n(size = n, replace = TRUE)
+  simulations[i] <- as.numeric(sim %>% summarise(mean_spending=mean(city_dining)))
+}
+
+# change to a tibble
+simulations <- tibble(mean_city_dining = simulations)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+interval <- quantile(simulations$mean_city_dining, probs=c(0.025, 0.975))
+```
+## Result for Q1
+
+- The 95% confidence interval is $263~$312. In other words, we are 95% confident that the interval $263 to $312 captures the true mean city dining spending.
+
+- The manager can use this result, combining with the change in price level and the number of members, to predict the future total revenue gained by their city dining restaurants and plan for future possible input to maximize profit.
+
+
+## Research Question 2
+*Question:* Is the mean value of the yearly amount spent on dining at the RCYC's restaurants **different between Female and Male members** in the city of Toronto (mainland) for 2017?
+
+- This can help determine if different marketing strategies are required to be designed for specific gender groups (e.g. ladies special menu).
+
+## Data Visualization for Q2
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.width=1.9, fig.height=1.9}
+# Q2 Visulization
+
+# Calculate the mean yearly amount spent of male and female
+mean_male <- as.numeric(city_male %>% summarise(mean(city_dining)))
+mean_female <- as.numeric(city_female %>% summarise(mean(city_dining)))
+
+# Plot a histograms for the male
+city_male %>% ggplot(aes(x=city_dining)) + 
+  geom_histogram(bins=20, fill="lightcyan", color="grey") +
+  geom_vline(xintercept = mean_male, color="blue")+
+  labs(title="Distribution of male's yearly spending ($)\
+       on city dining in 2017",
+       x="yearly spending ($) on city dining in 2017", 
+       y="Count",
+       caption="Figure 2") +
+  theme_minimal() + 
+  theme(axis.title = element_text(size=5),
+        plot.title = element_text(size=5),
+        plot.caption = element_text(size=5))
+
+# Plot a histograms for the female
+city_female %>% ggplot(aes(x=city_dining)) + 
+  geom_histogram(bins=20, fill="lightcyan", color="grey") +
+  geom_vline(xintercept = mean_female, color="red") +
+  labs(title="Distribution of female's yearly spending ($)\
+       on city dining in 2017", 
+       x="yearly spending ($) on city dining in 2017", 
+       y="Count",
+       caption="Figure 3") +
+  theme_minimal() + 
+  theme(axis.title = element_text(size=5),
+        plot.title = element_text(size=5),
+        plot.caption = element_text(size=5))
+
+```
+
+- The blue and red vertical lines in the graphs above represent the mean values of males’ and females’ yearly city dining spending in 2017 from the sample given (test statistics), which are \textcolor{blue}{\$288} and \textcolor{red}{\$289}, respectively.
+
+- The distributions of these two groups’ spendings are similar to each other, and they both lined with the overall distribution (see Figure 1).
+
+
+## Statistical Method for Q2
+
+- The two-group hypothesis test helps test if there is a difference in mean yearly spending on city dining between females and males in 2017.
+
+**The two-group hypothesis test:**
+
+- **Null hypothesis:** There is no difference in mean yearly spending on city dining between females and males in 2017.
+
+- **Alternative hypothesis:** There is a difference in the mean yearly spending on city dining between females and males in 2017. 
+
+- Using the test statistic ($289 - $288 = $1), we stimulate the samples under the assumption that the null hypothesis is true and calculate the statistic for each sample. Then, we obtain a p-value to see the strength of the evidence against our null hypothesis.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Q2 Is the mean value of yearly amount spent on dining at the RCYC's restaurants similar between the Female member and the Male member in the city of Toronto (mainland) for 2017?
+
+# calculate test_stat
+test_stat <- city %>% group_by(Sex) %>% summarise(mean=mean(city_dining)) %>% summarise(diff=diff(mean)) %>% as.numeric()
+# test_stat
+
+# do simulations
+set.seed(44)
+repetitions <- 2000
+simulated_values <- rep(NA, repetitions)
+
+for (i in 1:repetitions) {
+  sim <- city %>% mutate(city_dining=sample(city_dining))
+  simulated_values[i] <- sim %>% group_by(Sex) %>% summarise(mean=mean(city_dining)) %>% summarise(diff=diff(mean)) %>% as.numeric()
+}
+
+# change to a tibble
+simulation <- tibble(mean_diff=simulated_values)
+
+#calculate p-value
+p_value <- simulation %>% filter(abs(mean_diff) >= abs(test_stat)) %>% summarise(n() / repetitions) %>% as.numeric()
+# p_value
+```
+## Result for Q2
+
+- The p-value calculated is 0.965.
+
+- There is no evidence against the null hypothesis, which means that there is no significant difference between the mean values of female and male members' yearly spending at the RCYC's restaurants in the city of Toronto in 2017. 
+
+- Therefore, advertisers don't have to target differently between men and women. Marketing for both groups is equally important, and marketing funds should be evenly distributed.
+
+## Research Question 3
+*Question:* What's the relationship between **the value of the mean** yearly spending on dining at the RCYC restaurants in the city of Toronto (mainland) for 2017 and **age groups**?
+
+- Noticing that members of different age groups have different levels of consumption (see Figure 4 on the next page), we want to explore the relation between the age groups and the mean yearly spending on dining in the city restaurants.
+
+- The answer to this question helps understand the contribution of different age groups to restaurant turnover and can be used as a reference to develop some marketing plans targeting different age groups.
+
+## Data Visualization for Q3
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.width=4, fig.height=2.5}
+# Q3 Visualization
+city_age_group %>% ggplot(aes(x=Age, y=city_dining, color=age_group)) + 
+  geom_point(size=0.3, units="pt") +
+  labs(title="Figure 4: Yearly Amount Spent on Dining of City Restaurants in 2017", 
+       x="Age", 
+       y="Spending ($)",
+       caption = "Figure 4") +
+  theme_minimal() +
+  theme(axis.title = element_text(size=6),
+        plot.title = element_text(size=7),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size=6),
+        plot.caption = element_text(size=6))
+```
+
+- Each point corresponds to a member’s age (horizontal axis) and yearly spending on city dining (vertical axis) from the sample.
+
+
+## Statistical Method for Q3
+
+- We will use the linear regression model shown below to calculate the mean value of yearly spending of each age group, **in the sample**. Also, we can use it to test whether there are differences in **true** mean annual spending among all age groups.
+
+- From the sample, we get the mean of one group and the three differences in means between this group and the other three groups (i.e., $\beta_0$,  $\beta_1$,  $\beta_2$, $\beta_3$, in the model below will be estimated). 
+
+- The regression model is: 
+\begin{align*}
+spending_i = \beta_0 &+ \beta_1 \times I(\mathrm{age \; group \; of \; individual \; i \; is \; below \; 40}) \\
+&+ \beta_2 \times I(\mathrm{age \; group \; of \; individual \; i \; is \; 40 \; to\; 59})\\
+&+ \beta_3 \times I(\mathrm{age \; group \; of \; individual \; i \; is \; 60 \; to\; 80})\\
+&+ error_i
+\end{align*}
+  where $I(x)$ evaluetes to 1 when $x$ is true, 0 otherwise.
+
+- The baseline value is the age group above 80.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Q3 Can we predict the value of the mean yearly amount spent on dining at the RCYC restaurants in the city of Toronto (mainland) for 2017 based on which age groups they belong to?
+# Get random training dataset and testing dataset
+
+# Fit a model to data
+model <- lm(city_dining ~ age_group, data=city_age_group)
+
+#set.seed(44)
+#n <- nrow(city_age_group)
+#training_indices <- sample(1:n, size=round(0.8*n))
+
+# Add a new ID column called rowid
+#city_age_group <- city_age_group %>% rowid_to_column()
+
+# Create training dataset
+#train <- city_age_group %>% filter(rowid %in% training_indices)
+#y_train <- train$city_dining
+
+# Create testing dataset
+#test <- city_age_group %>% filter(! (rowid %in% training_indices))
+#y_test <- test$city_dining
+
+# Make predictions for testing data using model
+#yhat_test <- predict(model, newdata=test)
+
+# Make predictions for training data using model
+#yhat_train <- predict(model, newdata=train)
+
+# Calculate RMSE for testing data
+#test_RMSE <- sqrt(sum((y_test - yhat_test)^2) / nrow(test))
+
+# Calculate RMSE for training data
+#train_RMSE <- sqrt(sum((y_train - yhat_train)^2) / nrow(train))
+
+# Calculate the ratio of RMSE
+#ratio <- test_RMSE / train_RMSE
+
+#q3_tibble <- tibble(test_RMSE=test_RMSE, train_RMSE=train_RMSE, ratio=ratio)
+q3_coef <- summary(model)$coefficient
+
+#
+
+```
+
+## Result for Q3
+
+\center{The Mean Spending (\$) of Each Age Group from the Sample}
+| Age Group | below 40 | 40 to 59 | 60 to 80 | above 80 |
+|-----------|----------|----------|----------|----------|
+| Mean ($)  | 257      | 369      | 214      | 202      |
+
+- According to the p-value calculated, there is no significant difference in spending on city dining among groups below 40 (p-value: 0.42), age group 60-80 (p-value: 0.86) and above 80 (baseline group), while there is a significant difference between the age group 40-59 (p-value: 0.01) and the baseline group.
+
+- Furthermore, **in the sample**, the mean spending of members aged 40 to 59 is the highest, while that of the other three groups are similar. This suggests that the **true** mean spending of the group aged 40-60 is probably the highest.
+
+- Therefore, the manager may consider improving the appeal of dishes to other three age groups to boost their consumption.
+
+
+## Limitation 
+
+**Limitation of the data: **
+
+- The 2017 data may not be a good reference to connect with the real situation in 2021.
+
+**Limitation of the statistical methods:** 
+
+- *Limitation of bootstrap method (Q1):* We give a relatively wide range for the true mean spending (but highly confident on it), but if we want to give a narrower range, we will be less confident on it then. 
+
+- *Limitation on randomization testing (Q2):* This testing only informs whether the mean yearly amount spent of two groups differs or not, but does not provide any estimation of the true value.
+
+- *Limitations of the linear regression model (Q3):* We only calculate the mean spending of different age groups of the **sample**, but again, no estimations of **true** average spending of different age groups are provided.
+
+
+
+## Conclusion
+
+**Summary of Findings**
+
+- Q1: We are 95% confident that the true yearly amount spent on dining for the RCYC members at the RCYC’s restaurants in the city of Toronto (mainland) for 2017 lies in the interval \$263 to \$312.
+
+- Q2: There is no significant difference in the mean spending of males and females at the RCYC's restaurants in the city of Toronto for 2017.
+
+- Q3: The true mean spending of the age group 40-59 is probably the highest, while there is no significant difference among the other three groups.
+
+**Connection between the Findings**
+
+- The major connection about these findings is under the big topic of spending behavior. Concerning average spending of groups, female and male members behaved similarly, while among all age groups, the 40 to 59 one on average spent the most.
+
+## Conclusion
+
+- We encourage the manager to use this as a reference to carry out further marketing plans to boost the consumption of other age groups to maximize the revenue. 
+
+**Future advice on spending analysis**
+
+- We suggest collecting the data of recent years (eg.2019 and 2020) to explore year-on-year changes in consumption.
+
+- We suggest collecting data on the city's dining spending quarterly to explore the difference in consumption at different periods in a year.
+
+- We suggest collecting further data for 2020 and 2021 to investigate how the pandemic has affected the consumption level for gaining more future advice.
+
+
+
