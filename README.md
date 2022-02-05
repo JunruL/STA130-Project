@@ -2,4 +2,4 @@
 
 The slides includes all the results/conclusion of the analysis.
 
-Code for conducting analysis is contained in the Jupeter Notebook file as well.
+The R codes written for conducting statistical analysis is contained in the R-markdown (.rmd) file as well.
