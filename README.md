@@ -1,4 +1,4 @@
-# STA130 Analysis-of-dining-spending-at-RCYC-s-restaurants
+# Analysis of dining spending at RCYC restaurants
 
 - This is a course project done in a group of four, names of group mates are included in the first page of the presentation slide.
 
